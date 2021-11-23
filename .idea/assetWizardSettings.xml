@@ -80,8 +80,8 @@
                                             <option name="values">
                                               <map>
                                                 <entry key="color" value="000000" />
-                                                <entry key="imagePath" value="C:\Users\Administrator\Desktop\手电筒_开.png" />
-                                                <entry key="scalingPercent" value="50" />
+                                                <entry key="imagePath" value="C:\Users\Administrator\Desktop\手电筒.png" />
+                                                <entry key="scalingPercent" value="41" />
                                               </map>
                                             </option>
                                           </PersistentState>
@@ -114,7 +114,7 @@
                                   <option name="values">
                                     <map>
                                       <entry key="backgroundAssetType" value="COLOR" />
-                                      <entry key="backgroundColor" value="b39f47" />
+                                      <entry key="backgroundColor" value="dcb513" />
                                     </map>
                                   </option>
                                 </PersistentState>
@@ -291,6 +291,11 @@
                 </map>
               </option>
             </PersistentState>
+          </value>
+        </entry>
+        <entry key="vectorWizard">
+          <value>
+            <PersistentState />
           </value>
         </entry>
       </map>
