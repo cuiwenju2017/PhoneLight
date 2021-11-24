@@ -25,14 +25,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <receiver
-            android:name=".MainActivity$NotificationBroadcastReceiver"
-            tools:ignore="Instantiatable">
-            <intent-filter>
-                <action android:name="notification_cancelled" />
-            </intent-filter>
-        </receiver>
     </application>
 
 </manifest>

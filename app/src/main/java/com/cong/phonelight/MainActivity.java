@@ -1,44 +1,34 @@
 package com.cong.phonelight;
 
-import java.lang.reflect.Field;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import android.app.AlertDialog;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.graphics.BitmapFactory;
+import android.content.IntentFilter;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.SystemClock;
 import android.provider.Settings;
+import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.RemoteViews;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.necer.ndialog.NDialog;
-
-import static android.content.Intent.ACTION_DELETE;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -46,17 +36,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private boolean mBackKeyPressed = false;//记录是否有首次按键
     private CameraManager mCameraManager;
     private String mCameraId;
-    private boolean islight = false;
+    private boolean islight = true;
 
-    private NotificationManager mNotificationManager;
-    private String id;
     private NotificationChannel channel;
+    private NotificationManager manager;
+    private MyBroadCast receiver;
+    private int SUCCESS = 201;
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        // 注册广播，并设置过滤条件
+        receiver = new MyBroadCast();
+        IntentFilter filter = new IntentFilter("a");
+        registerReceiver(receiver, filter);
+
         initView();
         mCameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
@@ -66,7 +62,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         //开启闪光灯
         turnOnFlashLight();
-        islight = true;
+    }
+
+    class MyBroadCast extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            bjiv.setImageResource(R.drawable.off);//关闭的图片
+            turnOffFlashLight();
+            manager.cancel(1);
+            islight = false;
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.O)
@@ -75,20 +80,56 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         bjiv = findViewById(R.id.bjiv);
         iv.setOnClickListener(this);
 
+        showNotify();
+    }
+
+    private void showNotify() {
         //通知用户开启通知
         NotificationManagerCompat notification = NotificationManagerCompat.from(this);
         boolean isEnabled = notification.areNotificationsEnabled();
         if (!isEnabled) {
             openNotification();
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-            channel = manager.getNotificationChannel("1");
+            manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            // 通知渠道的id。
+            String id = "1";
+            // 用户可以看到的通知渠道的名字。
+            CharSequence name = getResources().getString(R.string.app_name);
+            int importance = NotificationManager.IMPORTANCE_HIGH;
+            NotificationChannel mChannel = new NotificationChannel(id, name, importance);
+            // 最后在notificationmanager中创建该通知渠道。
+            manager.createNotificationChannel(mChannel);
+            channel = manager.getNotificationChannel(id);
             if (channel.getImportance() == NotificationManager.IMPORTANCE_NONE) {
                 openNotification();
+            } else {
+                //普通通知
+                /*Notification notification = new NotificationCompat.Builder(this, id)
+                        .setContentTitle("Test")//通知标题
+                        .setContentText("通知内容")//通知内容
+                        .setSmallIcon(R.mipmap.ic_launcher)//通知小图标
+                        .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher))//通知大图标
+                        .build();
+                manager.notify(1, notification);*/
+
+                RemoteViews notificationLayout = new RemoteViews(getPackageName(), R.layout.notification_small);
+                notificationLayout.setTextViewText(R.id.notification_title, getResources().getString(R.string.app_name));
+                Intent intent = new Intent("a");
+                Intent intent2 = new Intent(this, MainActivity.class);
+                notificationLayout.setOnClickPendingIntent(R.id.notification_btn, PendingIntent.getBroadcast(MainActivity.this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT));
+                PendingIntent pendingIntent = PendingIntent.getBroadcast(MainActivity.this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+                PendingIntent pendingIntent2 = PendingIntent.getActivity(this, 1, intent2, PendingIntent.FLAG_UPDATE_CURRENT);
+
+                Notification customNotification = new NotificationCompat.Builder(this, id)
+                        .setSmallIcon(R.mipmap.ic_launcher)
+                        .setStyle(new NotificationCompat.DecoratedCustomViewStyle())
+                        .setCustomContentView(notificationLayout)//设置自定义View
+                        .setDeleteIntent(pendingIntent)//设置侧滑删除通知
+                        .setContentIntent(pendingIntent2)//设置可点击跳转
+                        .build();
+                manager.notify(1, customNotification);
             }
         }
-
-        notify_customview();
     }
 
     private void openNotification() {
@@ -132,67 +173,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             intent.setAction("android.settings.APPLICATION_DETAILS_SETTINGS");
                             intent.setData(Uri.fromParts("package", getPackageName(), null));
                         }
-                        startActivity(intent);
+                        startActivityForResult(intent, SUCCESS);
                     }
                 }).create(NDialog.CONFIRM).show();
     }
 
-    private void notify_customview() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            // 通知渠道的id。
-            id = "1";
-            // 用户可以看到的通知渠道的名字。
-            CharSequence name = getString(R.string.app_name);
-            // 用户可以看到的通知渠道的描述。
-            String description = getString(R.string.app_name);
-            int importance = NotificationManager.IMPORTANCE_HIGH;
-            NotificationChannel mChannel = new NotificationChannel(id, name, importance);
-            // 配置通知渠道的属性。
-            mChannel.setDescription(description);
-            // 设置通知出现时的闪灯（如果Android设备支持的话）。
-//            mChannel.enableLights(false);
-//            mChannel.setLightColor(Color.RED);
-            // 设置通知出现时的震动（如果Android设备支持的话）。
-//            mChannel.enableVibration(true);
-//            mChannel.setVibrationPattern(new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
-            // 最后在notificationmanager中创建该通知渠道。
-            mNotificationManager.createNotificationChannel(mChannel);
-        }
-
-        Intent intent = new Intent(this, MainActivity.class);
-        int notifyid = (int) System.currentTimeMillis();
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, notifyid, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-
-        Intent intentCancel = new Intent(getApplicationContext(), NotificationBroadcastReceiver.class);
-        PendingIntent pendingIntentCancel = PendingIntent.getBroadcast(getApplicationContext(), 0,
-                intentCancel, PendingIntent.FLAG_ONE_SHOT);
-
-        Notification notification = new NotificationCompat.Builder(this, id)
-                .setContentTitle(getResources().getString(R.string.app_name))
-//                .setContentText(getResources().getString(R.string.app_name))
-                .setWhen(System.currentTimeMillis())
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.mipmap.ic_launcher))
-                .setContentIntent(pendingIntent)//设置可点击跳转
-                .setDeleteIntent(pendingIntentCancel)//取消消息回调
-                .build();
-        mNotificationManager.notify(1, notification);
-    }
-
-    public class NotificationBroadcastReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            int type = intent.getIntExtra("type", -1);
-
-            if (type != -1) {
-                NotificationManager notificationManager =
-                        (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-                notificationManager.cancel(type);
-            }
-
-            turnOffFlashLight();
-            islight = false;
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == SUCCESS) {
+            showNotify();
         }
     }
 
@@ -202,12 +192,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (islight) {
                 bjiv.setImageResource(R.drawable.off);//关闭的图片
                 turnOffFlashLight();
-                mNotificationManager.cancel(1);
                 islight = false;
+                manager.cancel(1);
             } else {
                 bjiv.setImageResource(R.drawable.on);//点亮的图片
                 turnOnFlashLight();
-                notify_customview();
+                showNotify();
                 islight = true;
             }
         } catch (Exception e) {
@@ -257,7 +247,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {//退出程序
             //关灯
             turnOffFlashLight();
-            mNotificationManager.cancel(1);
+            manager.cancel(1);
             islight = false;
             finish();
         }
